@@ -2,3 +2,5 @@ streamlit
 cryptography
 pymongo
 rsa
+dnspython
+pymongo[srv]
