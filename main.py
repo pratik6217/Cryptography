@@ -4,6 +4,7 @@ import SessionState
 from pymongo import MongoClient
 import smtplib, ssl
 import rsa
+import ast
 
 session_state = SessionState.get(username = '', login = True, register = False, reg_valid = False, log_valid = False, logged_in = False)
 
@@ -26,15 +27,20 @@ def send_mail(receiver, message):
 			password = file.read()
 		context = ssl.create_default_context()
 		server = smtplib.SMTP_SSL('smtp.gmail.com', 465, context= context)
+		#server = smtplib.SMTP('smtp.gmail.com', 587)
 		server.ehlo()
+		#server.starttls()
 		server.login(user, password)
+		#server.starttls()
 		server.sendmail(user, receiver, message)
 		server.ehlo()
 	except Exception as e:
 		st.error(e)
+	else:
+		st.success('Email sent successfully !!')
 	finally:
 		server.quit()
-		st.success('Email sent successfully !!')
+		
 
 
 def Steganography():
@@ -52,20 +58,66 @@ def Steganography():
 		st.title('Encode:')
 		st.write(' ')
 		st.write('Here you can encrypt your message and send this message to anyone you like !!')
-		m = st.text_area('Enter your message:')
-		encrypted_message = f.encrypt(m.encode()).decode()
-		receiver = st.text_input("Enter the receiver's email:")
-		send = st.button('Encrypt & Send')
-		if send:
-			send_mail(receiver, encrypted_message)
+		encryption_choice = st.selectbox('Menu:', ['AES-FERNET', 'RSA'])
+		
+		if encryption_choice == 'AES-FERNET':
+			m = st.text_area('Enter your message:')
+			encrypted_message = f.encrypt(m.encode()).decode()
+			receiver = st.text_input("Enter the receiver's email:")
+			send = st.button('Encrypt & Send')
+			if send:
+				send_mail(receiver, encrypted_message)
+		
+		elif encryption_choice == 'RSA':
+			
+			with open('PrivateKey.key', 'r') as file:
+				private_n, private_e, private_d, private_p, private_q = file.readlines()
+
+			privateKey = rsa.PrivateKey(int(private_n), int(private_e), int(private_d), int(private_p), int(private_q))
+
+			with open('PublicKey.key', 'r') as file:
+				public_n, public_e = file.readlines()
+			
+			publicKey = rsa.PublicKey(int(public_n), int(public_e))
+
+			show = st.beta_columns(2)
+			show1 = show[0].button('Show my Public Key')
+			show2 = show[1].button('Show my Private Key')
+			if show1:
+				st.text_input('Public Key:', publicKey, type= 'password')
+
+			if show2:
+				st.text_input('Private Key:', privateKey, type= 'password')
+
+			m = st.text_area('Enter your message:')
+			encrypted_message = rsa.encrypt(m.encode(), publicKey)
+			receiver = st.text_input("Enter the receiver's email:")
+			send = st.button('Encrypt & Send')
+
+			if send:
+				send_mail(receiver, str(encrypted_message))
+
 
 	elif ch == 'Decode':
 		st.title('Decode:')
-		received_message = st.text_area('Enter your encrypted message:')
-		decode = st.button('Decode')
-		if decode:
-			decrypted_message = f.decrypt(received_message.encode()).decode()
-			st.write(decrypted_message)
+		decryption_choice = st.selectbox('Menu:', ['AES-FERNET', 'RSA'])
+		if decryption_choice == 'AES-FERNET':
+			received_message = st.text_area('Enter your encrypted message:')
+			decode = st.button('Decode')
+			if decode:
+				decrypted_message = f.decrypt(received_message.encode()).decode()
+				st.write(decrypted_message)
+		elif decryption_choice == 'RSA':
+			received_message = st.text_area('Enter your encrypted message:')
+			with open('PrivateKey.key', 'r') as file:
+				private_n, private_e, private_d, private_p, private_q = file.readlines()
+
+			privateKey = rsa.PrivateKey(int(private_n), int(private_e), int(private_d), int(private_p), int(private_q))
+			decode = st.button('Decode')
+			if decode:
+				decrypted_message = rsa.decrypt(ast.literal_eval(received_message), privateKey).decode()
+				st.write(decrypted_message)
+
 
 def register():
 	st.title('Register')
